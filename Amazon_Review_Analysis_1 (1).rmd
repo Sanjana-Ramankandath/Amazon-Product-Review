@@ -1,0 +1,255 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+Author: Sanjana Ramankandath (sramankandath@scu.edu)
+Title: Project 3: Review of Amazon Products
+Data: https://www.kaggle.com/datafiniti/consumer-reviews-of-amazon-products#Datafiniti_Amazon_Consumer_Reviews_of_Amazon_Products_May19.csv
+ 
+In this project, we will analyze the customer review data set of Amazon products. The dataset has > 20K records with several columns including product ratings, submission date, category etc., Using this data set, we are going to analyze the top reviewed product categories, how each product is rated based on it's description, pattern in which each item is sold and finally how these categories compete against each other with respect to the user-ratings.
+
+First let's get the data from the csv file. The working directory is assumed to contain the csv file that will be uploaded along with this notebook.
+
+```{r}
+# Get the dataset - Uncomment and modify based on the data source.
+# getwd()
+# setwd("/Users/sanjana.ramankandath/Documents/Personal/AmmuMasters/SantaClara_BA/Amazon")
+amazon_review_data_feb_apr_2019 <- read.csv("Datafiniti_Amazon_Consumer_Reviews_of_Amazon_Products_May19.csv")
+amazon_review_data_feb_apr_2019
+
+```
+
+First, let us group the data set based on the name and cleanse the data by removing unwanted description from the name. This helps in displaying concise information in the graphs/plots. 
+
+```{r}
+# Identify the unique list of products for each time period 
+library(dplyr)
+amazon_review_data_feb_apr_2019 %>% group_by(name) %>% tally() -> top_data_feb_apr_2019
+sorted_data_feb_apr_2019 <- top_data_feb_apr_2019[order(top_data_feb_apr_2019$n, decreasing = TRUE),]
+
+# Now in order to group same items in the data, there is no unique column because the data
+# doesn't have it. Let us use common filters to filter the data. Since each seller can post
+# the same item on sale using a different name, the only way to filter them is to use the
+# common name used for all products. Remove fluff/unwanted words from the name to preven the bar
+# plot from showing too much text.
+library(stringr)
+common_fluff_string = "- Includes Special Offers|All-New| E-reader|6 High-Resolution Display (300 ppi), Wi-Fi|with Adaptive Built-in Light, PagePress Sensors, Wi-Fi|Waterproof, Built-In Audible, 32 GB, Wi-Fi + Free Cellular Connectivity| (Fits Latest Generation Kindle and Kindle DX) For shipment in the U.S only|8 HD Display, Wi-Fi, |7 Display,|Silver Aluminum|High-Resolution Display (300 ppi), Wi-Fi| 6 High-Resolution Display (300 ppi), Wi-Fi"
+
+# Get the first and most popular item - AmazonBasics batteries
+batteries <- dplyr::filter(sorted_data_feb_apr_2019, grepl("Batteries|battery|batteries",name))
+
+# Each category might have different strings to be removed. Remove each one of them from each category
+batteries$name<-str_replace_all(batteries$name, "AmazonBasics AA|AAA|A| Performance Alkaline Batteries|Packaging May Vary", "")
+batteries$name <- str_replace_all(batteries$name, common_fluff_string, "")
+batteries$category <- "Batteries"
+
+# Get the data for Fire tablets.
+fire <- dplyr::filter(sorted_data_feb_apr_2019, grepl("Fire|fire", name))
+fire$category <- "Fire"
+fire$name <- str_replace_all(fire$name, "Edition Tablet|8 Tablet with Alexa, 8 HD Display, | - with Special Offers|-Proof Case|- Includes Special Offers,|All-New ","")
+fire$name <- str_replace_all(fire$name, common_fluff_string, "")
+# There are too many tablet records with bare minimum reviews, let's consider the top 20.
+fire <-head(fire, 20)
+
+# Similarly, get the data for Kindle and filter out the words.
+kindle <- dplyr::filter(sorted_data_feb_apr_2019, grepl("Kindle|kindle|E-reader", name))
+kindle$category <- "Kindle"
+kindle$name <- str_replace_all(kindle$name, common_fluff_string,"")
+kindle$name <- str_replace_all(kindle$name, "High-Resolution Display|(300 ppi)|Wi-Fi|Free Cellular Connectivity| and Power Adapter for Fire Tablets and Kindle eReaders|Power Adapter Wall Charger And Usb Cable Micro Usb Cord|PagePress Sensors, Free 3G", "")
+kindle$name <- str_replace_all(kindle$name, "(Fits Latest Generation Kindle and Kindle DX)| For shipment in the U.S only|International Charging Kit|(for accelerated charging in over 200 countries)|Wall Travel Charger Fire|micro Usb Cable|Glare-Free Touchscreen Display|()", "")
+
+# Filter unwanted words out of Amazon Echo product.
+echo <- dplyr::filter(sorted_data_feb_apr_2019, grepl("Echo|Smart Assistant|echo", name))
+echo$category <- "Echo"
+power_adapter <- dplyr::filter(sorted_data_feb_apr_2019, grepl("Power|Charger|power", name))
+power_adapter$category <- "power_adapter"
+power_adapter$name <- str_replace_all(power_adapter$name, common_fluff_string, "")
+```
+Observation 1:
+
+Now that we have 5 top datasets isolated based on the category, let us plot the number of reviews for each category. In this graph, it is clearly evident that one of the most popular amazon item is the batteries that Amazon provides as a part of AmazonBasics category line. This is not unusual since AmazonBasics batteries are some of the best when we compare it with competing products in similar price range. Fire Tablets is also quite popular in reviews. Amazon echo is not quite popular but this can be attributed to the time of data set since Voice Automation wasn't prevalent back then. Kindle is another decent product which has fairly high number of ratings too.
+
+```{r}
+# Set the appropriate themes for the plot.
+library(ggplot2)
+theme_set(
+  theme_minimal() +
+    theme(legend.position = "center")
+  )
+library(RColorBrewer)
+
+# Plot the top reviewed items along with their category. Category names are too big to be displayed in the same chart.
+# In order to get a stacked bar plot, the following reference was used to get the idea - http://rstudio-pubs-static.s3.amazonaws.com/3256_bb10db1440724dac8fa40da5e658ada5.html
+table_with_individual_categories <- rbind(batteries, fire, kindle, echo, power_adapter)
+top_reviewed_data_plot <- ggplot(data = table_with_individual_categories, aes(x = table_with_individual_categories$category, y = n,fill=table_with_individual_categories$category)) + geom_bar(stat="identity")
+top_reviewed_data_plot  + scale_fill_brewer(palette = "Blues")
+
+
+```
+Observation 2:
+
+In order to analyze closely if certain sub-categories has an impact in the overall barplot, we consider two categories from the above(Fire Tablets and Kindle) and analyze the percentage composition of sub-categories based on the name provided. A lot of sellers provide detailed description within the name which acts as a propellant for certain items to be sold more than the rest. For example in Fire tablet sale, the most popular item seems to be the 16GB tablet followed closely by tablets specific for Kids (Fire Kids). This provides a hint that a lot of consumers buy Fire tablets for their kids and also buy it with minimal config (16GB) compared to the maximum configuration provided(32G).
+
+```{r}
+
+# Calculate the percentage of each name based on the top few rows
+top_10_fire_tablet_reviews = head(fire, 10)
+top_10_fire_tablet_reviews$percentage <- (top_10_fire_tablet_reviews$n / sum(top_10_fire_tablet_reviews$n) * 100.0)
+top_10_fire_tablet_reviews
+
+# Create a pie chart with the top 10 fire tablet reviews. Format/color of the pie chart from https://www.r-bloggers.com/how-to-make-a-pie-chart-in-r/
+pie_fire_tablet = ggplot(top_10_fire_tablet_reviews, aes(x="", y=percentage, fill=name)) + geom_bar(stat="identity", width=1) + coord_polar("y", start=0) + geom_text(aes(label = paste0(round(percentage), "%")), position = position_stack(vjust = 0.5)) + labs(x = NULL, y = NULL, fill = NULL, title = "Fire Tablets") + theme_classic() + theme(axis.line = element_blank(),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          plot.title = element_text(hjust = 0.5, color = "#666666"))
+pie_fire_tablet
+```
+Observation 3:
+
+Similarly for Kindle product, Kindle Voyage seems to be the most popular in this time frame followed by the Kindle version which comes in white. Sellers who sell kindle along with a cover (Leather Charging Cover) seem to benefit as well.
+
+```{r}
+# Now let's do the same for kindle - Computing the composition of reviewes for kindle product.
+kindle$percentage <- kindle$n / sum(kindle$n) * 100
+kindle
+pie_kindle = ggplot(kindle, aes(x="", y=percentage, fill=name)) + geom_bar(stat="identity", width=1) + coord_polar("y", start=0) + labs(x = NULL, y = NULL, fill = NULL, title = "Kindle") + theme_classic() + theme(axis.line = element_blank(),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          plot.title = element_text(hjust = 0.5, color = "#777777"))
+pie_kindle
+
+```
+Observation 4:
+
+Let us analyze AmazonBasics batteries which seem to be quite popular with consumers. There are two categories sold (AA and AAA) and both of them are high sellers. We are going to check whether the ratings for batteries varies according to the time of the year. This is based on the column which has the date when the product was reviewed. One assumption that we make here is that a customer who buys a product from Amazon is likely to receive an email to submit a review within the first few weeks and submit one shortly after receiving it. From the plots, we can see two observations
+
+1. This product took a little time to be popular owing to the lack of reviews initially.
+2. The product is quite popular during the holidays.
+
+```{r}
+# Now for the top rated item, AmazonBasics batteries, let us check the review rate and see if the reviews are distributed over time
+all_battery_reviews <- dplyr::filter(amazon_review_data_feb_apr_2019, grepl("Performance Alkaline Batteries",name))
+
+# We are only concerned with review date and ratings for these products
+# To group the reviews on a monthly basis, let's clean the timestamp before grouping them
+install.packages("lubridate")
+library(lubridate)
+all_battery_reviews %>% select(name, reviews.date) -> battery_review_date
+battery_review_date$reviews.date <- as.Date(battery_review_date$reviews.date)
+battery_review_date %>% arrange(reviews.date) -> sorted_battery_review_date
+
+# For each review, let us add a column to indicate the count of review. As we group the reviews based on month and year, these will be accumulated
+sorted_battery_review_date$num_reviews <- 1
+
+# Group the reviews based on timerange - source: https://stackoverflow.com/questions/33221425/how-do-i-group-my-date-variable-into-month-year-in-r/33221885
+sorted_battery_review_date %>% mutate(month = format(reviews.date, "%m"), year = format(reviews.date, "%Y")) %>%
+group_by(month, year) -> battery_reviews_in_order
+
+# Since we grouped the review count, the sorted data is now unsorted. Let's sort them to display the timeline. Since we are focused on the month, we will treat the 1st of each month in our calculation based on the month and the year the review is set.
+battery_reviews_in_order %>% summarise(num_reviews=sum(num_reviews)) -> battery_reviews_per_month
+battery_reviews_per_month$Date <- paste(battery_reviews_per_month$year, battery_reviews_per_month$month, "01", sep="-")
+battery_reviews_per_month$Date <- as.Date(battery_reviews_per_month$Date, "%Y-%m-%d")
+battery_reviews_per_month %>% arrange(Date) -> sorted_battery_reviews_based_on_date
+sorted_battery_reviews_based_on_date$activity <-
+  ifelse(sorted_battery_reviews_based_on_date$num_reviews < 40, "Low",
+         ifelse(sorted_battery_reviews_based_on_date$num_reviews > 40 &
+                sorted_battery_reviews_based_on_date$num_reviews < 200, "Mid",
+         ifelse(sorted_battery_reviews_based_on_date$num_reviews > 200 &
+                sorted_battery_reviews_based_on_date$num_reviews < 350 , "High",
+         ifelse(sorted_battery_reviews_based_on_date$num_reviews < 1000, "Very_High",""))))
+
+# Plotting a timeline was referenced using http://benalexkeen.com/creating-a-timeline-graphic-using-r-and-ggplot2/ which used project timelines. We use similar strategy to compare the numebr of reviews that was recorded per month.
+review_levels <- c("Low", "Mid", "High", "Very_High")
+status_colors <- c("#0070C0", "#00B050", "#FFC000", "#C00000")
+sorted_battery_reviews_based_on_date$activity <- factor(sorted_battery_reviews_based_on_date$activity, levels=review_levels)
+sorted_battery_reviews_based_on_date
+
+# Variability of reviews on a plot shows that the product is quite popular during the holidays.
+install.packages("hrbrthemes")
+battery_plot <- ggplot(data = sorted_battery_reviews_based_on_date, aes(x = sorted_battery_reviews_based_on_date$Date, y = sorted_battery_reviews_based_on_date$num_reviews)) + geom_point(stat="identity") + geom_line(color="#e9ecef")+ ggtitle("AmazonBasics Batteries", subtitle="Review rate over time") + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.subtitle = element_text(hjust = 0.5))
+battery_plot
+```
+Observation 5:
+
+Similarly, for Fire Tablets, if we plot the reviews according to the timeline, we can see that the tablets are very popular during the holidays. These tablets are quite popular primarily because of their price point (relatively cheap compared to its main competitor- Apple Ipad) and the target demographic for these tablets, which is focussed towards kids during the holidays as a gift (based on the earlier pie chart). 
+
+```{r}
+# Now do the same for Fire Tablets
+all_fire_reviews <- dplyr::filter(amazon_review_data_feb_apr_2019, grepl("Fire|fire", name))
+all_fire_reviews %>% select(name, reviews.date) -> fire_review_date
+fire_review_date$reviews.date <- as.Date(fire_review_date$reviews.date)
+fire_review_date %>% arrange(reviews.date) -> sorted_fire_review_date
+
+# For each review, let us add a column to indicate the count of review. As we group the reviews based on month and year, these will be accumulated
+sorted_fire_review_date$num_reviews <- 1
+
+# Group the reviews based on timeline - source: https://stackoverflow.com/questions/33221425/how-do-i-group-my-date-variable-into-month-year-in-r/33221885
+sorted_fire_review_date %>% mutate(month = format(reviews.date, "%m"), year = format(reviews.date, "%Y")) %>%
+group_by(month, year) -> fire_reviews_in_order
+
+# Since we grouped the review count, the sorted data is now unsorted. Let's sort them to display the timeline. Since we are focused on the month, we will treat the 1st of each month in our calculation based on the month and the year the review is set.
+fire_reviews_in_order %>% summarise(num_reviews=sum(num_reviews)) -> fire_reviews_per_month
+fire_reviews_per_month$Date <- paste(fire_reviews_per_month$year, fire_reviews_per_month$month, "01", sep="-")
+fire_reviews_per_month$Date <- as.Date(fire_reviews_per_month$Date, "%Y-%m-%d")
+fire_reviews_per_month %>% arrange(Date) -> sorted_fire_reviews_per_month
+sorted_fire_reviews_per_month
+
+# Variability of reviews
+fire_plot <- ggplot(data = sorted_fire_reviews_per_month, aes(x = sorted_fire_reviews_per_month$Date, y = sorted_fire_reviews_per_month$num_reviews)) + geom_point(stat="identity", color="navyblue") + geom_line(color="#e9ecef")+ ggtitle("Fire Tablets", subtitle="Review rate over time") + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.subtitle = element_text(hjust = 0.5))
+fire_plot
+
+```
+Observation 6:
+
+Data for Kindle tablets is not as predictable as the earlier categories since the reviews are spread over the year. Kindle is a great product for E-readers and the target demographic is not quite narrow. In addition to Kindle E-readers, this data set also includes power-adapters for Kindle readers which could have skewed the results. 
+
+```{r}
+# Similar workflow for Kindle product
+all_kindle_reviews <- dplyr::filter(amazon_review_data_feb_apr_2019, grepl("Kindle|kindle|E-reader", name))
+all_kindle_reviews %>% select(name, reviews.date) -> kindle_review_date
+kindle_review_date$reviews.date <- as.Date(kindle_review_date$reviews.date)
+kindle_review_date %>% arrange(reviews.date) -> sorted_kindle_review_date
+
+# For each review, let us add a column to indicate the count of review. As we group the reviews based on month and year, these will be accumulated
+sorted_kindle_review_date$num_reviews <- 1
+
+# Group the reviews based on timeline - source: https://stackoverflow.com/questions/33221425/how-do-i-group-my-date-variable-into-month-year-in-r/33221885
+sorted_kindle_review_date %>% mutate(month = format(reviews.date, "%m"), year = format(reviews.date, "%Y")) %>%
+group_by(month, year) -> kindle_reviews_in_order
+
+# Since we grouped the review count, the sorted data is now unsorted. Let's sort them to display the timeline. Since we are focused on the month, we will treat the 1st of each month in our calculation based on the month and the year the review is set.
+kindle_reviews_in_order %>% summarise(num_reviews=sum(num_reviews)) -> kindle_reviews_per_month
+kindle_reviews_per_month$Date <- paste(kindle_reviews_per_month$year, kindle_reviews_per_month$month, "01", sep="-")
+kindle_reviews_per_month$Date <- as.Date(kindle_reviews_per_month$Date, "%Y-%m-%d")
+kindle_reviews_per_month %>% arrange(Date) -> sorted_kindle_reviews_per_month
+sorted_kindle_reviews_per_month
+
+# Variability of reviews
+kindle_plot <- ggplot(data = sorted_kindle_reviews_per_month, aes(x = sorted_kindle_reviews_per_month$Date, y = sorted_kindle_reviews_per_month$num_reviews)) + geom_point(stat="identity", color="springgreen3") + geom_line(color="#e9ecef")+ ggtitle("Amazon Kindle", subtitle="Review rate over time") + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.subtitle = element_text(hjust = 0.5))
+kindle_plot
+```
+Observation 7:
+
+Now let us compare the ratings for each of these categories and plot variability in which users are likely to provide a better rating for certain product. Based on the filtered data set, Fire Tablets have quite a large number of "4" ratings while Kindle and batteries have high number of consumers giving it "5" out of "5". The usability of Fire tablets could be one of the reason for this observation. 
+One other observation that was found here is that batteries have more number of unsatisfied customers who provided "1". If we analyze some of these ratings, a lot of it is due to the defective product that gets shipped and also the lifetime of a battery. While Amazon is likely to accept such items as Returns and provide a new one, a customer is unlikely to submit/edit his already completed review. 
+
+```{r}
+# Comparing review ratings of various product categories.
+all_fire_reviews %>% select(name, reviews.rating) -> all_fire_reviews_ratings
+all_kindle_reviews %>% select(name, reviews.rating) -> all_kindle_reviews_ratings
+all_battery_reviews %>% select(name, reviews.rating) -> all_battery_reviews_ratings
+
+# Now plot a density graph with each category.
+all_fire_reviews_ratings$Item = "Amazon Fire"
+all_kindle_reviews_ratings$Item = "Amazon Kindle"
+all_battery_reviews_ratings$Item = "Amazon Batteries"
+combined_reviews <- rbind(all_fire_reviews_ratings,all_kindle_reviews_ratings,all_battery_reviews_ratings)
+ggplot(combined_reviews, aes(reviews.rating, fill = Item)) + geom_density(alpha = 0.5, position = 'identity') + theme(legend.position="right") + ggtitle("Comparison of User Ratings") + theme(plot.title = element_text(hjust = 0.5)) 
+
+```
+
+
+All the analysis and graphs posted above provide some interesting and useful information with respect to Amazon supplied products and the consumer behavior when it comes to purchasing (popularity based on the time). Unlike the general perception, Few amazon products like Fire tablets are quite popular and targeted towards a niche segment and sold very frequently during the holidays.  
