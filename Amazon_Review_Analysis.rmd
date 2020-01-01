@@ -6,7 +6,6 @@ output:
 ---
 
 Author: Sanjana Ramankandath (sramankandath@scu.edu)
-Title: Project 3: Review of Amazon Products
 Data: https://www.kaggle.com/datafiniti/consumer-reviews-of-amazon-products#Datafiniti_Amazon_Consumer_Reviews_of_Amazon_Products_May19.csv
  
 In this project, we will analyze the customer review data set of Amazon products. The dataset has > 20K records with several columns including product ratings, submission date, category etc., Using this data set, we are going to analyze the top reviewed product categories, how each product is rated based on it's description, pattern in which each item is sold and finally how these categories compete against each other with respect to the user-ratings.
