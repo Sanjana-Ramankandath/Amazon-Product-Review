@@ -1,7 +1,6 @@
 ---
 title: "R Notebook"
 output:
-  pdf_document: default
   html_document:
     df_print: paged
     keep_md: true
@@ -137,8 +136,8 @@ all_battery_reviews <- dplyr::filter(amazon_review_data_feb_apr_2019, grepl("Per
 
 # We are only concerned with review date and ratings for these products
 # To group the reviews on a monthly basis, let's clean the timestamp before grouping them
-install.packages("lubridate")
-library(lubridate)
+#if(!require(lubridate)) install.packages("lubridate",repos = "http://cran.us.r-project.org")
+#library(lubridate)
 all_battery_reviews %>% select(name, reviews.date) -> battery_review_date
 battery_review_date$reviews.date <- as.Date(battery_review_date$reviews.date)
 battery_review_date %>% arrange(reviews.date) -> sorted_battery_review_date
@@ -170,7 +169,7 @@ sorted_battery_reviews_based_on_date$activity <- factor(sorted_battery_reviews_b
 sorted_battery_reviews_based_on_date
 
 # Variability of reviews on a plot shows that the product is quite popular during the holidays.
-install.packages("hrbrthemes")
+#install.packages("hrbrthemes")
 battery_plot <- ggplot(data = sorted_battery_reviews_based_on_date, aes(x = sorted_battery_reviews_based_on_date$Date, y = sorted_battery_reviews_based_on_date$num_reviews)) + geom_point(stat="identity") + geom_line(color="#e9ecef")+ ggtitle("AmazonBasics Batteries", subtitle="Review rate over time") + theme(plot.title = element_text(hjust = 0.5)) + theme(plot.subtitle = element_text(hjust = 0.5))
 battery_plot
 ```
