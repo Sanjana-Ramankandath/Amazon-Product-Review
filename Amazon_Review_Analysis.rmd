@@ -4,6 +4,7 @@ output:
   pdf_document: default
   html_document:
     df_print: paged
+    keep_md: true
 ---
 
 Author: Sanjana Ramankandath (sramankandath@scu.edu)
